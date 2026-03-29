@@ -3,249 +3,215 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Real-Time GPS Tracker</title>
+    <title>Umeed - Real-time Location Dashboard</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600&display=swap" rel="stylesheet">
     <style>
-        body {
-            margin: 0;
-            padding: 0;
-            font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-            background-color: #f0f2f5;
-            color: #1a1a1a;
+        :root {
+            --primary: #2563eb;
+            --bg-light: #f1f5f9;
+            --card-bg: #ffffff;
+            --text-main: #1e293b;
+            --text-dim: #64748b;
+            --border: #e2e8f0;
         }
 
-        #map {
-            height: 100vh;
-            width: 100%;
-        }
+        * { margin:0; padding:0; box-sizing:border-box; }
+        body { font-family: 'Inter', sans-serif; background: var(--bg-light); color: var(--text-main); height: 100vh; display: flex; overflow: hidden; }
 
-        /* Live Device Panel */
-        #panel {
-            position: absolute;
-            top: 20px;
-            left: 20px;
-            width: 300px;
-            max-height: 80vh;
+        /* Login Overlay */
+        #login_overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
             background: rgba(255, 255, 255, 0.95);
+            display: flex; align-items: center; justify-content: center;
+            z-index: 9999;
             backdrop-filter: blur(10px);
-            border-radius: 12px;
-            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15);
-            padding: 20px;
-            z-index: 5;
-            overflow-y: auto;
-            border: 1px solid rgba(255, 255, 255, 0.3);
         }
-
-        h2 {
-            margin: 0 0 15px 0;
-            font-size: 1.2rem;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
+        .login-card {
+            background: var(--card-bg); padding: 40px; border-radius: 20px;
+            box-shadow: 0 20px 50px rgba(0,0,0,0.1);
+            text-align: center; width: 350px;
+            border: 1px solid var(--border);
         }
-
-        .refresh-time {
-            font-weight: normal;
-            font-size: 0.75rem;
-            color: #666;
+        .login-card h2 { margin-bottom: 8px; font-weight: 600; color: var(--primary); }
+        .login-card p { margin-bottom: 24px; color: var(--text-dim); font-size: 14px; }
+        .login-card input {
+            width: 100%; padding: 14px; border-radius: 10px; border: 1px solid var(--border);
+            background: #fff; color: #1e293b; margin-bottom: 16px; text-align: center;
+            font-size: 20px; letter-spacing: 6px; outline: none; transition: 0.3s;
         }
-
-        .device-item {
-            padding: 12px;
-            border-bottom: 1px solid #eee;
-            cursor: pointer;
-            transition: background 0.2s;
-            border-radius: 8px;
+        .login-card input:focus { border-color: var(--primary); box-shadow: 0 0 0 2px rgba(37,99,235,0.1); }
+        .login-card button {
+            width: 100%; padding: 14px; border-radius: 10px; border: none;
+            background: var(--primary); color: white; font-weight: 600; cursor: pointer;
+            font-size: 16px; transition: 0.3s;
         }
+        .login-card button:hover { background: #1d4ed8; transform: translateY(-1px); }
+        .login-card .error { color: #ef4444; font-size: 13px; margin-top: 12px; display: none; }
 
-        .device-item:hover {
-            background: #f8f9fa;
+        /* Main UI */
+        #sidebar { width: 350px; background: var(--card-bg); border-right: 1px solid var(--border); display: flex; flex-direction: column; }
+        #map { flex-grow: 1; }
+
+        .header { padding: 24px; border-bottom: 1px solid var(--border); }
+        .header h1 { font-size: 22px; font-weight: 600; color: var(--primary); margin-bottom: 4px; }
+        .header p { font-size: 12px; color: var(--text-dim); }
+
+        .device-list { flex-grow: 1; overflow-y: auto; padding: 16px; }
+        .device-card {
+            background: #fff; padding: 16px; border-radius: 12px; margin-bottom: 12px;
+            border: 1px solid var(--border); cursor: pointer; transition: 0.2s;
         }
-
-        .device-id {
-            font-weight: bold;
-            font-size: 0.9rem;
-            margin-bottom: 4px;
+        .device-card:hover { border-color: var(--primary); transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,0.05); }
+        .device-card h3 { font-size: 15px; margin-bottom: 4px; color: var(--text-main); }
+        .device-card p { font-size: 11px; color: var(--text-dim); margin-bottom: 2px; }
+        .status-pill {
+            display: inline-block; padding: 3px 10px; border-radius: 8px;
+            font-size: 10px; font-weight: 600; margin-top: 10px;
+            background: rgba(16, 185, 129, 0.1); color: #065f46;
+            border: 1px solid rgba(16, 185, 129, 0.2);
         }
-
-        .device-info {
-            font-size: 0.8rem;
-            color: #555;
-            display: flex;
-            justify-content: space-between;
-        }
-
-        .badge {
-            padding: 2px 8px;
-            border-radius: 12px;
-            font-size: 0.7rem;
-            text-transform: uppercase;
-            font-weight: bold;
-        }
-
-        .badge-gps { background: #e6f4ea; color: #1e8e3e; }
-        .badge-network { background: #fef7e0; color: #f9ab00; }
-
-        /* Custom Marker InfoWindow */
-        .info-window {
-            padding: 10px;
-            line-height: 1.6;
+        .status-pill.mode-network {
+             background: rgba(249, 171, 0, 0.1); color: #92400e;
+             border: 1px solid rgba(249, 171, 0, 0.2);
         }
     </style>
 </head>
 <body>
 
-    <div id="panel">
-        <h2>
-            Live Devices
-            <span id="last-refresh" class="refresh-time">Refreshing...</span>
-        </h2>
-        <div id="device-list">
-            <!-- Devices will appear here -->
+    <!-- PIN Entry Overlay -->
+    <div id="login_overlay">
+        <div class="login-card">
+            <h2>Umeed Tracker</h2>
+            <p>Enter Dashboard PIN to Continue</p>
+            <input type="password" id="pin_input" maxlength="4" placeholder="••••">
+            <button onclick="verifyPin()">Unlock Dashboard</button>
+            <p id="login_error" class="error">Invalid PIN. Please try again.</p>
+        </div>
+    </div>
+
+    <div id="sidebar">
+        <div class="header">
+            <h1>Umeed Live</h1>
+            <p id="status_text">Initialising tracker...</p>
+        </div>
+        <div id="device_list" class="device-list">
+            <p style="text-align:center; color:var(--text-dim); padding-top:20px;">No devices active</p>
         </div>
     </div>
 
     <div id="map"></div>
 
-    <!-- Replace YOUR_API_KEY with your actual Google Maps API Key -->
-    <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyDRJvMizB7mDDb3mzdLsZb3UY8wI1VPu7o&callback=initMap" async defer></script>
-
     <script>
         let map;
-        let markers = {}; // device_id -> google.maps.Marker
-        const BACKEND_URL = "https://obaid4303.pythonanywhere.com";
+        let markers = {};
+        const API_BASE_URL = "http://localhost:5000"; 
 
         function initMap() {
-            // Karachi Coordinates
-            const karachi = { lat: 24.8607, lng: 67.0011 };
-            
             map = new google.maps.Map(document.getElementById("map"), {
-                zoom: 12,
-                center: karachi,
-                mapId: "fb54b8a927a3c3c", // Optional: Custom Vector Map ID
-                disableDefaultUI: false,
-                zoomControl: true,
-                streetViewControl: false
+                center: { lat: 30.3753, lng: 69.3451 },
+                zoom: 5,
+                styles: [], // Default light theme
+                disableDefaultUI: true,
+                zoomControl: true
             });
+            
+            if (localStorage.getItem("umeed_verified") === "true") {
+                document.getElementById("login_overlay").style.display = "none";
+                startDashboard();
+            }
+        }
 
-            // Start polling for data
-            fetchLocations();
+        function startDashboard() {
             setInterval(fetchLocations, 5000);
+            fetchLocations();
+        }
+
+        async function verifyPin() {
+            const pin = document.getElementById("pin_input").value;
+            try {
+                const response = await fetch(`${API_BASE_URL}/verify-pin`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ pin: pin })
+                });
+
+                if (response.ok) {
+                    localStorage.setItem("umeed_verified", "true");
+                    document.getElementById("login_overlay").style.display = "none";
+                    startDashboard();
+                } else {
+                    document.getElementById("login_error").style.display = "block";
+                }
+            } catch (err) {
+                alert("Server Connection Error: Ensure backend is running.");
+            }
         }
 
         async function fetchLocations() {
             try {
-                const response = await fetch(`${BACKEND_URL}/get-all-locations`);
-                const devices = await response.json();
-                
-                updateMarkers(devices);
-                updateDeviceList(devices);
-                
-                document.getElementById("last-refresh").innerText = 
-                    "Updated: " + new Date().toLocaleTimeString();
-            } catch (error) {
-                console.error("Error fetching locations:", error);
-                document.getElementById("last-refresh").innerText = "Connection Error";
+                const res = await fetch(`${API_BASE_URL}/get-all-locations`);
+                if (!res.ok) throw new Error("Fetch failed");
+                const devices = await res.json();
+                updateUI(devices);
+            } catch (err) {
+                console.error("Fetch error:", err);
+                document.getElementById("status_text").innerText = "Connection lost...";
             }
         }
 
-        function updateMarkers(devices) {
-            devices.forEach(device => {
-                const pos = { lat: parseFloat(device.lat), lng: parseFloat(device.lon) };
-                const isGps = device.mode === "gps";
-                
-                // Color configuration
-                const markerColor = isGps ? "#1E8E3E" : "#F9AB00"; // Green for GPS, Orange for Network
+        function updateUI(devices) {
+            const listDiv = document.getElementById("device_list");
+            const statusText = document.getElementById("status_text");
+            
+            // Filter out old test data
+            const activeDevices = devices.filter(d => d.device_id !== 'test_phone');
+            
+            statusText.innerText = `Monitoring ${activeDevices.length} active devices`;
+            
+            if (activeDevices.length === 0) {
+                 listDiv.innerHTML = '<p style="text-align:center; color:var(--text-dim); padding-top:20px;">Waiting for devices...</p>';
+                 return;
+            }
 
+            listDiv.innerHTML = "";
+            activeDevices.forEach(device => {
+                const pos = { lat: parseFloat(device.lat), lng: parseFloat(device.lon) };
+                const label = device.username || "Anonymous Device";
+
+                // Sidebar Card
+                const card = document.createElement("div");
+                card.className = "device-card";
+                card.innerHTML = `
+                    <h3>${label}</h3>
+                    <p style="opacity:0.6;">App Instance: ${device.device_id.substring(0, 12)}...</p>
+                    <p>Last seen: ${device.timestamp}</p>
+                    <span class="status-pill mode-${device.mode}">${device.mode.toUpperCase()}</span>
+                `;
+                card.onclick = () => {
+                    map.panTo(pos);
+                    map.setZoom(15);
+                };
+                listDiv.appendChild(card);
+
+                // Map Marker
                 if (markers[device.device_id]) {
-                    // Update existing marker
                     markers[device.device_id].setPosition(pos);
-                    markers[device.device_id].setIcon(getMarkerIcon(markerColor));
-                    // Update label in case device_id somehow changes
-                    markers[device.device_id].setLabel(getMarkerLabel(device.device_id));
                 } else {
-                    // Create new marker
-                    const marker = new google.maps.Marker({
+                    markers[device.device_id] = new google.maps.Marker({
                         position: pos,
                         map: map,
-                        title: device.device_id,
-                        icon: getMarkerIcon(markerColor),
-                        label: getMarkerLabel(device.device_id),
-                        animation: google.maps.Animation.DROP
+                        title: label,
+                        label: {
+                            text: label[0].toUpperCase(),
+                            color: "#FFFFFF",
+                            fontWeight: "bold"
+                        }
                     });
-
-                    const infoWindow = new google.maps.InfoWindow({
-                        content: `
-                            <div class="info-window">
-                                <strong>Device:</strong> ${device.device_id}<br>
-                                <strong>Mode:</strong> ${device.mode.toUpperCase()}<br>
-                                <strong>Time:</strong> ${device.timestamp}
-                            </div>
-                        `
-                    });
-
-                    marker.addListener("click", () => {
-                        infoWindow.open(map, marker);
-                    });
-
-                    markers[device.device_id] = marker;
                 }
             });
         }
-
-        function getMarkerIcon(color) {
-            return {
-                path: google.maps.SymbolPath.CIRCLE,
-                fillColor: color,
-                fillOpacity: 1,
-                strokeWeight: 2,
-                strokeColor: "#FFFFFF",
-                scale: 18, // Increased scale to make space for the label
-                labelOrigin: new google.maps.Point(0, 0)
-            };
-        }
-
-        function getMarkerLabel(text) {
-            return {
-                text: text,
-                color: "#FFFFFF",
-                fontSize: "10px",
-                fontWeight: "bold"
-            };
-        }
-
-        function updateDeviceList(devices) {
-            const listContainer = document.getElementById("device-list");
-            listContainer.innerHTML = "";
-
-            if (devices.length === 0) {
-                listContainer.innerHTML = "<p style='font-size:0.8rem;color:#777'>No active devices</p>";
-                return;
-            }
-
-            devices.forEach(device => {
-                const item = document.createElement("div");
-                item.className = "device-item";
-                
-                const badgeClass = device.mode === "gps" ? "badge-gps" : "badge-network";
-                const timeStr = device.timestamp.split('T')[1].split('.')[0]; // Quick extract time
-
-                item.innerHTML = `
-                    <div class="device-id">${device.device_id}</div>
-                    <div class="device-info">
-                        <span class="badge ${badgeClass}">${device.mode}</span>
-                        <span>${timeStr}</span>
-                    </div>
-                `;
-
-                item.onclick = () => {
-                    map.panTo({ lat: parseFloat(device.lat), lng: parseFloat(device.lon) });
-                    map.setZoom(15);
-                    google.maps.event.trigger(markers[device.device_id], 'click');
-                };
-
-                listContainer.appendChild(item);
-            });
-        }
     </script>
+    <!-- Use your actual API Key here -->
+    <script async src="https://maps.googleapis.com/maps/api/js?key=AIzaSyDRJvMizB7mDDb3mzdLsZb3UY8wI1VPu7o&callback=initMap"></script>
 </body>
 </html>
