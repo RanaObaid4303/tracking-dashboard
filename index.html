@@ -74,6 +74,25 @@
              background: rgba(249, 171, 0, 0.1); color: #92400e;
              border: 1px solid rgba(249, 171, 0, 0.2);
         }
+        .status-badge {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 0.75rem;
+            font-weight: bold;
+            text-transform: uppercase;
+            margin-top: 4px;
+        }
+        .status-online {
+            background-color: #dcfce7;
+            color: #15803d;
+            border: 1px solid #bbf7d0;
+        }
+        .status-offline {
+            background-color: #fee2e2;
+            color: #b91c1c;
+            border: 1px solid #fecaca;
+        }
     </style>
 </head>
 <body>
@@ -177,6 +196,14 @@
             activeDevices.forEach(device => {
                 const pos = { lat: parseFloat(device.lat), lng: parseFloat(device.lon) };
                 const label = device.username || "Anonymous Device";
+                
+                // Calculate if device is online (updated in last 60 seconds)
+                const lastSeen = new Date(device.timestamp);
+                const now = new Date();
+                const diffSeconds = Math.floor((now - lastSeen) / 1000);
+                const isOnline = diffSeconds < 60;
+                const statusText = isOnline ? "Online" : "Offline";
+                const statusClass = isOnline ? "status-online" : "status-offline";
 
                 // Sidebar Card
                 const card = document.createElement("div");
@@ -184,7 +211,7 @@
                 card.innerHTML = `
                     <h3>${label}</h3>
                     <p style="opacity:0.6;">App Instance: ${device.device_id.substring(0, 12)}...</p>
-                    <p>Last seen: ${device.timestamp}</p>
+                    <p>Status: <span class="${statusClass}">${statusText}</span> (${diffSeconds < 0 ? 0 : diffSeconds}s ago)</p>
                     <span class="status-pill mode-${device.mode}">${device.mode.toUpperCase()}</span>
                 `;
                 card.onclick = () => {
@@ -196,11 +223,27 @@
                 // Map Marker
                 if (markers[device.device_id]) {
                     markers[device.device_id].setPosition(pos);
+                    markers[device.device_id].setIcon({
+                        path: google.maps.SymbolPath.CIRCLE,
+                        fillColor: isOnline ? "#15803d" : "#b91c1c",
+                        fillOpacity: 1,
+                        strokeWeight: 2,
+                        strokeColor: "#ffffff",
+                        scale: 10
+                    });
                 } else {
                     markers[device.device_id] = new google.maps.Marker({
                         position: pos,
                         map: map,
                         title: label,
+                        icon: {
+                            path: google.maps.SymbolPath.CIRCLE,
+                            fillColor: isOnline ? "#15803d" : "#b91c1c",
+                            fillOpacity: 1,
+                            strokeWeight: 2,
+                            strokeColor: "#ffffff",
+                            scale: 10
+                        },
                         label: {
                             text: label[0].toUpperCase(),
                             color: "#FFFFFF",
