@@ -126,17 +126,24 @@
             fetchLocations();
         }
 
-        
-        function verifyPin() {
-            const CORRECT_PIN = "1234"; // Change this to your PIN
+        async function verifyPin() {
             const pin = document.getElementById("pin_input").value;
-            if (pin === CORRECT_PIN) {
-                localStorage.setItem("umeed_verified", "true");
-                document.getElementById("login_overlay").style.display = "none";
-                startDashboard();
-            } else {
-                document.getElementById("login_error").style.display = "block";
-                document.getElementById("pin_input").value = "";
+            try {
+                const response = await fetch(`${API_BASE_URL}/verify-pin`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ pin: pin })
+                });
+
+                if (response.ok) {
+                    localStorage.setItem("umeed_verified", "true");
+                    document.getElementById("login_overlay").style.display = "none";
+                    startDashboard();
+                } else {
+                    document.getElementById("login_error").style.display = "block";
+                }
+            } catch (err) {
+                alert("Server Connection Error: Ensure backend is running.");
             }
         }
 
