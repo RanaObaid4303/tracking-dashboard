@@ -93,6 +93,36 @@
             color: #b91c1c;
             border: 1px solid #fecaca;
         }
+
+        /* Tabs Navigation */
+        .tabs { display: flex; border-bottom: 1px solid var(--border); background: #fff; position: sticky; top: 0; z-index: 10; }
+        .tab-btn { flex: 1; padding: 16px; border: none; background: none; font-family: inherit; font-size: 14px; font-weight: 600; color: var(--text-dim); cursor: pointer; border-bottom: 2px solid transparent; transition: 0.2s; }
+        .tab-btn.active { color: var(--primary); border-bottom-color: var(--primary); background: rgba(37,99,235,0.05); }
+
+        /* Objectives Panel */
+        #objectives_panel { display: none; flex-grow: 1; overflow-y: auto; padding: 16px; background: #f8fafc; }
+        .filter-bar { display: flex; flex-direction: column; gap: 10px; margin-bottom: 20px; }
+        .filter-bar input { padding: 10px; border-radius: 8px; border: 1px solid var(--border); font-family: inherit; font-size: 14px; }
+        .filter-bar button { padding: 10px; border-radius: 8px; border: none; background: var(--primary); color: white; font-weight: 600; cursor: pointer; }
+
+        /* Summary Cards */
+        .summary-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 20px; }
+        .summary-card { background: white; padding: 12px; border-radius: 12px; border: 1px solid var(--border); text-align: center; }
+        .summary-card h4 { font-size: 10px; color: var(--text-dim); text-transform: uppercase; margin-bottom: 4px; }
+        .summary-card p { font-size: 18px; font-weight: 700; color: var(--primary); }
+
+        /* Report Cards */
+        .report-card { background: white; padding: 16px; border-radius: 12px; border: 1px solid var(--border); margin-bottom: 16px; box-shadow: 0 2px 4px rgba(0,0,0,0.02); }
+        .report-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8px; }
+        .report-header h3 { font-size: 15px; color: var(--text-main); }
+        .report-meta { font-size: 12px; color: var(--text-dim); margin-bottom: 12px; line-height: 1.5; }
+        .doctor-list { margin: 12px 0; border-top: 1px dashed var(--border); padding-top: 12px; }
+        .doctor-item { font-size: 13px; margin-bottom: 8px; color: var(--text-main); }
+        .doctor-item span { display: block; font-size: 11px; color: var(--primary); margin-top: 2px; }
+        .map-view-btn { width: 100%; padding: 8px; border-radius: 8px; border: 1px solid var(--primary); background: white; color: var(--primary); font-size: 12px; font-weight: 600; cursor: pointer; transition: 0.2s; }
+        .map-view-btn:hover { background: var(--primary); color: white; }
+
+        .loading-spinner { text-align: center; padding: 20px; color: var(--text-dim); font-size: 14px; }
     </style>
 </head>
 <body>
@@ -109,12 +139,58 @@
     </div>
 
     <div id="sidebar">
-        <div class="header">
-            <h1>Umeed Live</h1>
-            <p id="status_text">Initialising tracker...</p>
+        <!-- Tabs -->
+        <div class="tabs">
+            <button class="tab-btn active" id="tab_live" onclick="switchTab('live')">🗺️ Live Tracking</button>
+            <button class="tab-btn" id="tab_objectives" onclick="switchTab('objectives')">📋 View Objectives</button>
         </div>
-        <div id="device_list" class="device-list">
-            <p style="text-align:center; color:var(--text-dim); padding-top:20px;">No devices active</p>
+
+        <!-- Live Tracking View -->
+        <div id="live_view">
+            <div class="header">
+                <h1>Umeed Live</h1>
+                <p id="status_text">Initialising tracker...</p>
+            </div>
+            <div id="device_list" class="device-list">
+                <p style="text-align:center; color:var(--text-dim); padding-top:20px;">No devices active</p>
+            </div>
+        </div>
+
+        <!-- Objectives Admin View -->
+        <div id="objectives_panel">
+            <div class="header" style="padding: 0 0 20px 0;">
+                <h1>Objectives Admin</h1>
+                <p>Monitor daily field targets</p>
+            </div>
+
+            <div class="filter-bar">
+                <input type="date" id="filter_date">
+                <input type="text" id="filter_user" placeholder="Search username...">
+                <button onclick="loadObjectives()">Load Reports</button>
+            </div>
+
+            <div class="summary-grid">
+                <div class="summary-card">
+                    <h4>Users</h4>
+                    <p id="sum_users">0</p>
+                </div>
+                <div class="summary-card">
+                    <h4>Doctors</h4>
+                    <p id="sum_doctors">0</p>
+                </div>
+                <div class="summary-card">
+                    <h4>Out Station</h4>
+                    <p id="sum_out">0</p>
+                </div>
+                <div class="summary-card">
+                    <h4>Local</h4>
+                    <p id="sum_local">0</p>
+                </div>
+            </div>
+
+            <div id="objectives_list">
+                <!-- Objectives will be loaded here -->
+            </div>
         </div>
     </div>
 
@@ -123,17 +199,23 @@
     <script>
         let map;
         let markers = {};
+        let objectiveMarkers = [];
+        let activeTab = 'live'; // 'live' or 'objectives'
         const API_BASE_URL = "https://obaid4303.pythonanywhere.com"; 
 
         function initMap() {
             map = new google.maps.Map(document.getElementById("map"), {
                 center: { lat: 30.3753, lng: 69.3451 },
                 zoom: 5,
-                styles: [], // Default light theme
+                styles: [], 
                 disableDefaultUI: true,
                 zoomControl: true
             });
             
+            // Set default date to today
+            const today = new Date().toISOString().split('T')[0];
+            document.getElementById('filter_date').value = today;
+
             if (localStorage.getItem("umeed_verified") === "true") {
                 document.getElementById("login_overlay").style.display = "none";
                 startDashboard();
@@ -141,8 +223,40 @@
         }
 
         function startDashboard() {
-            setInterval(fetchLocations, 5000);
+            // Live Tracking Refresh (5s)
+            setInterval(() => {
+                if (activeTab === 'live') fetchLocations();
+            }, 5000);
+
+            // Objectives Refresh (30s)
+            setInterval(() => {
+                if (activeTab === 'objectives') loadObjectives();
+            }, 30000);
+
             fetchLocations();
+            loadObjectives();
+        }
+
+        function switchTab(tab) {
+            activeTab = tab;
+            const liveTab = document.getElementById('tab_live');
+            const objTab = document.getElementById('tab_objectives');
+            const liveView = document.getElementById('live_view');
+            const objPanel = document.getElementById('objectives_panel');
+
+            if (tab === 'live') {
+                liveTab.classList.add('active');
+                objTab.classList.remove('active');
+                liveView.style.display = 'block';
+                objPanel.style.display = 'none';
+                clearObjectiveMarkers();
+            } else {
+                liveTab.classList.remove('active');
+                objTab.classList.add('active');
+                liveView.style.display = 'none';
+                objPanel.style.display = 'flex';
+                loadObjectives();
+            }
         }
 
         async function verifyPin() {
@@ -171,18 +285,16 @@
                 const res = await fetch(`${API_BASE_URL}/get-all-locations`);
                 if (!res.ok) throw new Error("Fetch failed");
                 const devices = await res.json();
-                updateUI(devices);
+                updateLiveUI(devices);
             } catch (err) {
                 console.error("Fetch error:", err);
                 document.getElementById("status_text").innerText = "Connection lost...";
             }
         }
 
-        function updateUI(devices) {
+        function updateLiveUI(devices) {
             const listDiv = document.getElementById("device_list");
             const statusText = document.getElementById("status_text");
-            
-            // Filter out old test data
             const activeDevices = devices.filter(d => d.device_id !== 'test_phone');
             
             statusText.innerText = `Monitoring ${activeDevices.length} active devices`;
@@ -197,7 +309,6 @@
                 const pos = { lat: parseFloat(device.lat), lng: parseFloat(device.lon) };
                 const label = device.username || "Anonymous Device";
                 
-                // Calculate if device is online (updated in last 60 seconds)
                 const lastSeen = new Date(device.timestamp);
                 const now = new Date();
                 const diffSeconds = Math.floor((now - lastSeen) / 1000);
@@ -205,7 +316,6 @@
                 const statusText = isOnline ? "Online" : "Offline";
                 const statusClass = isOnline ? "status-online" : "status-offline";
 
-                // Sidebar Card
                 const card = document.createElement("div");
                 card.className = "device-card";
                 card.innerHTML = `
@@ -220,39 +330,140 @@
                 };
                 listDiv.appendChild(card);
 
-                // Map Marker
-                if (markers[device.device_id]) {
-                    markers[device.device_id].setPosition(pos);
-                    markers[device.device_id].setIcon({
-                        path: google.maps.SymbolPath.CIRCLE,
-                        fillColor: isOnline ? "#15803d" : "#b91c1c",
-                        fillOpacity: 1,
-                        strokeWeight: 2,
-                        strokeColor: "#ffffff",
-                        scale: 10
-                    });
-                } else {
-                    markers[device.device_id] = new google.maps.Marker({
-                        position: pos,
-                        map: map,
-                        title: label,
-                        icon: {
-                            path: google.maps.SymbolPath.CIRCLE,
-                            fillColor: isOnline ? "#15803d" : "#b91c1c",
-                            fillOpacity: 1,
-                            strokeWeight: 2,
-                            strokeColor: "#ffffff",
-                            scale: 10
-                        },
-                        label: {
-                            text: label[0].toUpperCase(),
-                            color: "#FFFFFF",
-                            fontWeight: "bold"
-                        }
-                    });
+                if (activeTab === 'live') {
+                    if (markers[device.device_id]) {
+                        markers[device.device_id].setPosition(pos);
+                    } else {
+                        markers[device.device_id] = new google.maps.Marker({
+                            position: pos,
+                            map: map,
+                            title: label,
+                            icon: {
+                                path: google.maps.SymbolPath.CIRCLE,
+                                fillColor: isOnline ? "#15803d" : "#b91c1c",
+                                fillOpacity: 1,
+                                strokeWeight: 2,
+                                strokeColor: "#ffffff",
+                                scale: 10
+                            },
+                            label: { text: label[0].toUpperCase(), color: "#FFFFFF", fontWeight: "bold" }
+                        });
+                    }
                 }
             });
         }
+
+        async function loadObjectives() {
+            const date = document.getElementById('filter_date').value;
+            const search = document.getElementById('filter_user').value.toLowerCase();
+            const listDiv = document.getElementById('objectives_list');
+            
+            listDiv.innerHTML = '<div class="loading-spinner">Fetching reports...</div>';
+
+            try {
+                // Fetch Summary
+                const sumRes = await fetch(`${API_BASE_URL}/get-objectives-summary?date=${date}`);
+                if (sumRes.ok) {
+                    const sum = await sumRes.json();
+                    document.getElementById('sum_users').innerText = sum.total_users || 0;
+                    document.getElementById('sum_doctors').innerText = sum.total_visits || 0;
+                    document.getElementById('sum_out').innerText = sum.trip_types.outstation || 0;
+                    document.getElementById('sum_local').innerText = sum.trip_types.local || 0;
+                }
+
+                // Fetch Detailed Reports
+                const res = await fetch(`${API_BASE_URL}/get-objectives?date=${date}`);
+                if (!res.ok) throw new Error("Load failed");
+                const reports = await res.json();
+                
+                const filtered = reports.filter(r => r.username.toLowerCase().includes(search));
+                
+                if (filtered.length === 0) {
+                    listDiv.innerHTML = '<p style="text-align:center; color:var(--text-dim); padding-top:20px;">No reports found for this date.</p>';
+                    return;
+                }
+
+                listDiv.innerHTML = "";
+                filtered.forEach(report => {
+                    const card = document.createElement('div');
+                    card.className = 'report-card';
+                    
+                    let doctorsHTML = "";
+                    report.doctors.forEach((doc, idx) => {
+                        doctorsHTML += `
+                            <div class="doctor-item">
+                                ${idx + 1}. ${doc.name}
+                                <span>📍 ${doc.location_name}</span>
+                            </div>
+                        `;
+                    });
+
+                    card.innerHTML = `
+                        <div class="report-header">
+                            <h3>👤 ${report.username}</h3>
+                            <span class="status-pill">${report.trip_type.toUpperCase()}</span>
+                        </div>
+                        <div class="report-meta">
+                            📅 ${report.date}<br>
+                            📝 <b>${report.trip_description || 'No description provided'}</b><br>
+                            🕐 Submitted: ${new Date(report.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+                        </div>
+                        <div class="doctor-list">
+                            <strong style="font-size:12px; display:block; margin-bottom:10px;">Doctors to Visit (${report.doctors.length}):</strong>
+                            ${doctorsHTML}
+                        </div>
+                        <button class="map-view-btn" onclick='showObjectivesOnMap(${JSON.stringify(report.doctors)})'>View on Map 🗺️</button>
+                    `;
+                    listDiv.appendChild(card);
+                });
+
+            } catch (err) {
+                console.error("Objectives fetch error:", err);
+                listDiv.innerHTML = '<p style="text-align:center; color:#ef4444; padding-top:20px;">Failed to load reports.</p>';
+            }
+        }
+
+        function showObjectivesOnMap(doctors) {
+            clearObjectiveMarkers();
+            switchTab('live');
+            
+            const bounds = new google.maps.LatLngBounds();
+
+            doctors.forEach((doc, idx) => {
+                const pos = { lat: doc.lat, lng: doc.lon };
+                const marker = new google.maps.Marker({
+                    position: pos,
+                    map: map,
+                    title: doc.name,
+                    label: {
+                        text: (idx + 1).toString(),
+                        color: "white"
+                    },
+                    icon: {
+                        path: google.maps.SymbolPath.BACKWARD_CLOSED_ARROW,
+                        scale: 6,
+                        fillColor: "#2563eb",
+                        fillOpacity: 0.9,
+                        strokeWeight: 1,
+                        strokeColor: "#ffffff"
+                    }
+                });
+                objectiveMarkers.push(marker);
+                bounds.extend(pos);
+            });
+
+            if (doctors.length > 0) {
+                map.fitBounds(bounds);
+                // If only one marker, fitBounds might be too zoomed in
+                if (doctors.length === 1) map.setZoom(15);
+            }
+        }
+
+        function clearObjectiveMarkers() {
+            objectiveMarkers.forEach(m => m.setMap(null));
+            objectiveMarkers = [];
+        }
+    </script>
     </script>
     <!-- Use your actual API Key here -->
     <script async src="https://maps.googleapis.com/maps/api/js?key=AIzaSyDRJvMizB7mDDb3mzdLsZb3UY8wI1VPu7o&callback=initMap"></script>
