@@ -6,7 +6,454 @@
     <title>Umeed - Real-time Location Dashboard</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600&display=swap" rel="stylesheet">
     <style>
+        :root {<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MartinDow - Real-time Location Dashboard</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
         :root {
+            --brand-blue: #00458B;
+            --brand-blue-dark: #003366;
+            --brand-blue-light: #E0F2FE;
+            --surface-gray: #F8FAFC;
+            --card-bg: #ffffff;
+            --text-primary: #111827;
+            --text-secondary: #4B5563;
+            --border: #E2E8F0;
+            --success: #10B981;
+            --error: #EF4444;
+        }
+
+        * { margin:0; padding:0; box-sizing:border-box; }
+        body { font-family: 'Inter', sans-serif; background: var(--surface-gray); color: var(--text-primary); height: 100vh; display: flex; overflow: hidden; }
+
+        /* Login Overlay */
+        #login_overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(255, 255, 255, 0.98);
+            display: flex; align-items: center; justify-content: center;
+            z-index: 9999;
+            backdrop-filter: blur(12px);
+        }
+        .login-card {
+            background: var(--card-bg); padding: 48px; border-radius: 24px;
+            box-shadow: 0 25px 60px rgba(0,0,0,0.08);
+            text-align: center; width: 400px;
+            border: 1px solid var(--border);
+        }
+        .login-card svg { margin-bottom: 24px; }
+        .login-card h2 { margin-bottom: 8px; font-weight: 700; color: var(--brand-blue); font-size: 24px; }
+        .login-card p { margin-bottom: 32px; color: var(--text-secondary); font-size: 14px; }
+        .login-card input {
+            width: 100%; padding: 16px; border-radius: 12px; border: 1.5px solid var(--border);
+            background: #fff; color: var(--text-primary); margin-bottom: 20px; text-align: center;
+            font-size: 22px; letter-spacing: 8px; outline: none; transition: 0.3s;
+        }
+        .login-card input:focus { border-color: var(--brand-blue); box-shadow: 0 0 0 4px rgba(0,69,139,0.1); }
+        .login-card button {
+            width: 100%; padding: 16px; border-radius: 12px; border: none;
+            background: var(--brand-blue); color: white; font-weight: 600; cursor: pointer;
+            font-size: 16px; transition: 0.3s; box-shadow: 0 4px 12px rgba(0,69,139,0.2);
+        }
+        .login-card button:hover { background: var(--brand-blue-dark); transform: translateY(-1px); }
+        .login-card .error { color: var(--error); font-size: 13px; margin-top: 16px; display: none; font-weight: 600; }
+
+        /* Main Layout */
+        #sidebar { width: 380px; background: var(--card-bg); border-right: 1px solid var(--border); display: flex; flex-direction: column; z-index: 100; box-shadow: 4px 0 20px rgba(0,0,0,0.02); }
+        #map { flex-grow: 1; position: relative; }
+
+        /* Header / Logo */
+        .header { padding: 24px; border-bottom: 1px solid var(--border); background: #fff; }
+        .logo-container { display: flex; align-items: center; gap: 12px; margin-bottom: 16px; }
+        .logo-container svg { height: 28px; width: auto; }
+        .header h1 { font-size: 20px; font-weight: 700; color: var(--brand-blue); margin-bottom: 4px; }
+        .header p { font-size: 12px; color: var(--text-secondary); font-weight: 500; }
+
+        /* Tabs Navigation */
+        .tabs { display: flex; background: #fff; border-bottom: 1px solid var(--border); }
+        .tab-btn { flex: 1; padding: 18px; border: none; background: none; font-family: inherit; font-size: 13px; font-weight: 600; color: var(--text-secondary); cursor: pointer; border-bottom: 3px solid transparent; transition: 0.3s; display: flex; align-items: center; justify-content: center; gap: 8px; }
+        .tab-btn.active { color: var(--brand-blue); border-bottom-color: var(--brand-blue); background: var(--brand-blue-light); }
+        .tab-btn:hover:not(.active) { background: #f8fafc; }
+
+        /* View Containers */
+        .view-content { flex-grow: 1; overflow-y: auto; background: var(--surface-gray); }
+        #live_view, #objectives_panel { padding: 20px; }
+
+        /* Device Cards */
+        .device-card {
+            background: #fff; padding: 18px; border-radius: 16px; margin-bottom: 12px;
+            border: 1px solid var(--border); cursor: pointer; transition: 0.3s;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.02);
+        }
+        .device-card:hover { border-color: var(--brand-blue); transform: translateY(-3px); box-shadow: 0 10px 20px rgba(0,0,0,0.05); }
+        .device-card h3 { font-size: 16px; font-weight: 600; color: var(--text-primary); margin-bottom: 4px; }
+        .device-card p { font-size: 12px; color: var(--text-secondary); margin-bottom: 4px; }
+        
+        .badge { display: inline-block; padding: 4px 10px; border-radius: 8px; font-size: 10px; font-weight: 700; text-transform: uppercase; margin-right: 6px; }
+        .status-online { background: #DCFCE7; color: #15803D; border: 1px solid #BBF7D0; }
+        .status-offline { background: #FEE2E2; color: #B91C1C; border: 1px solid #FECACA; }
+        .mode-gps { background: var(--brand-blue-light); color: var(--brand-blue); border: 1px solid rgba(0,69,139,0.15); }
+        .mode-network { background: #FEF3C7; color: #92400E; border: 1px solid #FDE68A; }
+
+        /* Objectives Filters */
+        .filter-bar { background: #fff; padding: 16px; border-radius: 16px; border: 1px solid var(--border); margin-bottom: 20px; gap: 12px; display: flex; flex-direction: column; }
+        .filter-bar input { padding: 12px; border-radius: 10px; border: 1px solid var(--border); font-family: inherit; font-size: 14px; outline: none; transition: 0.2s; }
+        .filter-bar input:focus { border-color: var(--brand-blue); }
+        .filter-bar button { padding: 12px; border-radius: 10px; border: none; background: var(--brand-blue); color: white; font-weight: 700; cursor: pointer; transition: 0.2s; }
+        .filter-bar button:hover { background: var(--brand-blue-dark); }
+
+        /* Summary Dashboard */
+        .summary-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 24px; }
+        .summary-card { background: white; padding: 16px; border-radius: 16px; border: 1px solid var(--border); text-align: center; }
+        .summary-card h4 { font-size: 10px; color: var(--text-secondary); text-transform: uppercase; margin-bottom: 6px; letter-spacing: 0.05em; font-weight: 700; }
+        .summary-card p { font-size: 22px; font-weight: 800; color: var(--brand-blue); }
+
+        /* Report List */
+        .report-card { background: white; padding: 20px; border-radius: 16px; border: 1px solid var(--border); margin-bottom: 16px; box-shadow: 0 4px 6px rgba(0,0,0,0.02); }
+        .report-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px; }
+        .report-header h3 { font-size: 16px; font-weight: 700; color: var(--text-primary); }
+        .meta-info { font-size: 12px; color: var(--text-secondary); line-height: 1.6; margin-bottom: 16px; }
+        .doctor-list { margin: 16px 0; padding-top: 16px; border-top: 1px dashed var(--border); }
+        .doctor-item { font-size: 13px; margin-bottom: 10px; color: var(--text-primary); font-weight: 500; }
+        .doctor-item span { display: block; font-size: 11px; color: var(--brand-blue); font-weight: 600; margin-top: 3px; }
+        .map-btn { width: 100%; padding: 10px; border-radius: 10px; border: 1.5px solid var(--brand-blue); background: transparent; color: var(--brand-blue); font-size: 12px; font-weight: 700; cursor: pointer; transition: 0.2s; }
+        .map-btn:hover { background: var(--brand-blue); color: white; }
+
+        /* Dismiss Button */
+        .device-card { position: relative; }
+        .dismiss-btn { 
+            position: absolute; top: 12px; right: 12px; 
+            width: 24px; height: 24px; border-radius: 50%;
+            background: #F3F4F6; color: #9CA3AF;
+            border: none; cursor: pointer;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 16px; font-weight: 700; transition: 0.2s;
+            z-index: 10;
+        }
+        .dismiss-btn:hover { background: #fee2e2; color: #ef4444; }
+
+        /* Scrollbar */
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #CBD5E1; border-radius: 10px; }
+    </style>
+</head>
+<body>
+
+    <!-- Martin Dow Brand Logo SVG Component -->
+    <svg style="display:none">
+        <symbol id="icon-martindow" viewBox="0 0 200 100">
+            <g transform="translate(10, 10) scale(0.8)">
+                <!-- Recreated dots swirl -->
+                <path fill="#00458B" d="M30,15a4,4 0 1,1 8,0a4,4 0,1,1 -8,0" />
+                <path fill="#00458B" d="M45,18a3.5,3.5 0 1,1 7,0a3.5,3.5 0,1,1 -7,0" />
+                <path fill="#00458B" d="M58,22a3,3 0 1,1 6,0a3,3 0,1,1 -6,0" />
+                <path fill="#085BAA" d="M70,28a2.5,2.5 0 1,1 5,0a2.5,2.5 0,1,1 -5,0" />
+                <!-- Text paths for Martin Dow -->
+                <path fill="#00458B" d="M10,75 L18,75 L18,55 L24,68 L30,55 L30,75 L38,75 L38,50 L30,50 L24,63 L18,50 L10,50 Z" />
+                <path fill="#00458B" d="M125,75 A12,12 0 0 0 137,63 L137,50 L125,50 L125,55 L131,55 L131,63 A6,6 0 0 1 125,69 L125,75 Z" />
+            </g>
+        </symbol>
+    </svg>
+
+    <!-- Authentication Overlay -->
+    <div id="login_overlay">
+        <div class="login-card">
+            <svg width="120" height="60"><use href="#icon-martindow"/></svg>
+            <h2>MartinDow Login</h2>
+            <p>Enter the secure Dashboard PIN to continue</p>
+            <input type="password" id="pin_input" maxlength="4" placeholder="••••">
+            <button onclick="verifyPin()">Unlock Dashboard</button>
+            <p id="login_error" class="error">Access Denied: Invalid PIN code.</p>
+        </div>
+    </div>
+
+    <div id="sidebar">
+        <!-- Dashboard Header -->
+        <div class="header">
+            <div class="logo-container">
+                <svg width="100" height="40"><use href="#icon-martindow"/></svg>
+            </div>
+            <h1 id="brand_title">MartinDow Tracker</h1>
+            <p id="status_text">Establishing live connection...</p>
+        </div>
+
+        <!-- Navigation Tabs -->
+        <div class="tabs">
+            <button class="tab-btn active" id="tab_live" onclick="switchTab('live')">🌐 Live Assets</button>
+            <button class="tab-btn" id="tab_objectives" onclick="switchTab('objectives')">📋 Objectives</button>
+        </div>
+
+        <div class="view-content">
+            <!-- Live Status View -->
+            <div id="live_view">
+                <div id="device_list">
+                    <p style="text-align:center; color:var(--text-secondary); padding-top:40px; font-size:14px;">Waiting for asset signal...</p>
+                </div>
+            </div>
+
+            <!-- Objectives Management View -->
+            <div id="objectives_panel" style="display:none">
+                <div class="filter-bar">
+                    <label style="font-size:11px; font-weight:700; color:var(--text-secondary);">FILTER BY DATE</label>
+                    <input type="date" id="filter_date">
+                    <input type="text" id="filter_user" placeholder="Search by Username...">
+                    <button onclick="loadObjectives()">Apply Filters</button>
+                </div>
+
+                <div class="summary-grid">
+                    <div class="summary-card"><h4>Field Staff</h4><p id="sum_users">0</p></div>
+                    <div class="summary-card"><h4>Visits</h4><p id="sum_doctors">0</p></div>
+                    <div class="summary-card"><h4>Out Station</h4><p id="sum_out">0</p></div>
+                    <div class="summary-card"><h4>Local</h4><p id="sum_local">0</p></div>
+                </div>
+
+                <div id="objectives_list"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Map Engine Container -->
+    <div id="map"></div>
+
+    <script>
+        let map;
+        let markers = {};
+        let objectiveMarkers = [];
+        let dismissedDevices = new Set();
+        let activeTab = 'live'; 
+        const API_BASE_URL = "https://obaid4303.pythonanywhere.com"; 
+
+        function initMap() {
+            map = new google.maps.Map(document.getElementById("map"), {
+                center: { lat: 30.3753, lng: 69.3451 },
+                zoom: 5,
+                styles: [
+                    { "featureType": "administrative", "elementType": "labels.text.fill", "stylers": [{ "color": "#444444" }] },
+                    { "featureType": "landscape", "elementType": "all", "stylers": [{ "color": "#f2f2f2" }] },
+                    { "featureType": "poi", "elementType": "all", "stylers": [{ "visibility": "off" }] },
+                    { "featureType": "water", "elementType": "all", "stylers": [{ "color": "#c0d8ff" }, { "visibility": "on" }] }
+                ], 
+                disableDefaultUI: true,
+                zoomControl: true,
+                gestureHandling: "greedy"
+            });
+            
+            const today = new Date().toISOString().split('T')[0];
+            document.getElementById('filter_date').value = today;
+
+            if (localStorage.getItem("martindow_verified") === "true") {
+                document.getElementById("login_overlay").style.display = "none";
+                startDashboard();
+            }
+        }
+
+        function startDashboard() {
+            setInterval(() => { if (activeTab === 'live') fetchLocations(); }, 5000);
+            setInterval(() => { if (activeTab === 'objectives') loadObjectives(); }, 30000);
+            fetchLocations();
+            loadObjectives();
+        }
+
+        function switchTab(tab) {
+            activeTab = tab;
+            document.getElementById('tab_live').classList.toggle('active', tab === 'live');
+            document.getElementById('tab_objectives').classList.toggle('active', tab === 'objectives');
+            document.getElementById('live_view').style.display = tab === 'live' ? 'block' : 'none';
+            document.getElementById('objectives_panel').style.display = tab === 'objectives' ? 'flex' : 'none';
+            if (tab === 'live') clearObjectiveMarkers(); else loadObjectives();
+        }
+
+        async function verifyPin() {
+            const pin = document.getElementById("pin_input").value;
+            try {
+                const response = await fetch(`${API_BASE_URL}/verify-pin`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ pin: pin })
+                });
+                if (response.ok) {
+                    localStorage.setItem("martindow_verified", "true");
+                    document.getElementById("login_overlay").style.display = "none";
+                    startDashboard();
+                } else {
+                    document.getElementById("login_error").style.display = "block";
+                }
+            } catch (err) { alert("Server Connection Error: Ensure backend is running."); }
+        }
+
+        async function fetchLocations() {
+            try {
+                const res = await fetch(`${API_BASE_URL}/get-all-locations`);
+                if (!res.ok) throw new Error("Fetch failed");
+                const devices = await res.json();
+                updateLiveUI(devices);
+            } catch (err) {
+                console.error("Fetch error:", err);
+                document.getElementById("status_text").innerText = "Connection Interrupted...";
+            }
+        }
+
+        function updateLiveUI(devices) {
+            const listDiv = document.getElementById("device_list");
+            const statusText = document.getElementById("status_text");
+            
+            // Filter out test phone AND dismissed devices
+            const visibleDevices = devices.filter(d => 
+                d.device_id !== 'test_phone' && !dismissedDevices.has(d.device_id)
+            );
+
+            // Clean up markers for dismissed devices
+            Object.keys(markers).forEach(id => {
+                if (dismissedDevices.has(id)) {
+                    markers[id].setMap(null);
+                    delete markers[id];
+                }
+            });
+            
+            statusText.innerText = `Active Field Force: ${visibleDevices.length}`;
+            
+            if (visibleDevices.length === 0) {
+                 listDiv.innerHTML = '<p style="text-align:center; color:var(--text-secondary); padding-top:40px;">No field staff signal found.</p>';
+                 return;
+            }
+
+            listDiv.innerHTML = "";
+            visibleDevices.forEach(device => {
+                const pos = { lat: parseFloat(device.lat), lng: parseFloat(device.lon) };
+                const label = device.username || "Unknown Asset";
+                
+                const lastSeen = new Date(device.timestamp);
+                const now = new Date();
+                const diffSeconds = Math.floor((now - lastSeen) / 1000);
+                const isOnline = diffSeconds < 120;
+                const statusClass = isOnline ? "status-online" : "status-offline";
+
+                const card = document.createElement("div");
+                card.className = "device-card";
+                card.innerHTML = `
+                    <button class="dismiss-btn" onclick="dismissDevice(event, '${device.device_id}')">×</button>
+                    <h3>${label}</h3>
+                    <p style="opacity:0.6;">UID: ${device.device_id.substring(0, 8).toUpperCase()}</p>
+                    <div style="margin-top:8px;">
+                        <span class="badge ${statusClass}">${isOnline ? "Online" : "Offline"}</span>
+                        <span class="badge mode-${device.mode}">${device.mode.toUpperCase()}</span>
+                    </div>
+                `;
+                card.onclick = () => { map.panTo(pos); map.setZoom(16); };
+                listDiv.appendChild(card);
+
+                if (activeTab === 'live') {
+                    if (markers[device.device_id]) {
+                        markers[device.device_id].setPosition(pos);
+                    } else {
+                        markers[device.device_id] = new google.maps.Marker({
+                            position: pos,
+                            map: map,
+                            title: label,
+                            icon: {
+                                path: google.maps.SymbolPath.CIRCLE,
+                                fillColor: isOnline ? "#15803d" : "#b91c1c",
+                                fillOpacity: 1,
+                                strokeWeight: 3,
+                                strokeColor: "#ffffff",
+                                scale: 11
+                            }
+                        });
+                    }
+                }
+            });
+        }
+
+        function dismissDevice(event, deviceId) {
+            event.stopPropagation(); // Prevent card.onclick from firing
+            if (confirm("Stop viewing this location for the current session?")) {
+                dismissedDevices.add(deviceId);
+                fetchLocations(); // Immediately refresh UI
+            }
+        }
+
+        async function loadObjectives() {
+            const date = document.getElementById('filter_date').value;
+            const search = document.getElementById('filter_user').value.toLowerCase();
+            const listDiv = document.getElementById('objectives_list');
+            
+            try {
+                const sumRes = await fetch(`${API_BASE_URL}/get-objectives-summary?date=${date}`);
+                if (sumRes.ok) {
+                    const sum = await sumRes.json();
+                    document.getElementById('sum_users').innerText = sum.total_users || 0;
+                    document.getElementById('sum_doctors').innerText = sum.total_visits || 0;
+                    document.getElementById('sum_out').innerText = sum.trip_types?.outstation || 0;
+                    document.getElementById('sum_local').innerText = sum.trip_types?.local || 0;
+                }
+
+                const res = await fetch(`${API_BASE_URL}/get-objectives?date=${date}`);
+                if (!res.ok) throw new Error("Load failed");
+                const reports = await res.json();
+                const filtered = reports.filter(r => r.username.toLowerCase().includes(search));
+                
+                if (filtered.length === 0) {
+                    listDiv.innerHTML = '<p style="text-align:center; color:var(--text-secondary); padding-top:40px;">No report logs available.</p>';
+                    return;
+                }
+
+                listDiv.innerHTML = "";
+                filtered.forEach(report => {
+                    const card = document.createElement('div');
+                    card.className = 'report-card';
+                    card.innerHTML = `
+                        <div class="report-header">
+                            <h3>👤 ${report.username}</h3>
+                            <span class="badge mode-network">${report.trip_type.toUpperCase()}</span>
+                        </div>
+                        <div class="meta-info">
+                            📅 Reporting Date: ${report.date}<br>
+                            📝 Trip: <b>${report.trip_description || 'No notes'}</b><br>
+                            🕐 Logged at: ${new Date(report.timestamp).toLocaleTimeString()}
+                        </div>
+                        <div class="doctor-list">
+                            <strong style="font-size:11px; color:var(--brand-blue); text-transform:uppercase;">Physician Visits (${report.doctors.length})</strong>
+                            ${report.doctors.map((doc, i) => `<div class="doctor-item">${i+1}. ${doc.name} <span>📍 ${doc.location_name}</span></div>`).join('')}
+                        </div>
+                        <button class="map-btn" onclick='showObjectivesOnMap(${JSON.stringify(report.doctors)})'>TRACK OBJECTIVES 🗺️</button>
+                    `;
+                    listDiv.appendChild(card);
+                });
+            } catch (err) { console.error(err); }
+        }
+
+        function showObjectivesOnMap(doctors) {
+            clearObjectiveMarkers();
+            switchTab('live');
+            const bounds = new google.maps.LatLngBounds();
+            doctors.forEach((doc, idx) => {
+                const pos = { lat: doc.lat, lng: doc.lon };
+                const marker = new google.maps.Marker({
+                    position: pos,
+                    map: map,
+                    title: doc.name,
+                    label: { text: (idx + 1).toString(), color: "white", fontWeight: "bold" },
+                    icon: { path: google.maps.SymbolPath.BACKWARD_CLOSED_ARROW, scale: 6, fillColor: "#00458B", fillOpacity: 0.9, strokeWeight: 1, strokeColor: "#ffffff" }
+                });
+                objectiveMarkers.push(marker);
+                bounds.extend(pos);
+            });
+            if (doctors.length > 0) map.fitBounds(bounds);
+        }
+
+        function clearObjectiveMarkers() {
+            objectiveMarkers.forEach(m => m.setMap(null));
+            objectiveMarkers = [];
+        }
+    </script>
+    <script async src="https://maps.googleapis.com/maps/api/js?key=AIzaSyDO8tyca3UrTPXurfZKmjwBxcUVOVCwc7M&callback=initMap"></script>
+</body>
+</html>
+
             --primary: #2563eb;
             --bg-light: #f1f5f9;
             --card-bg: #ffffff;
