@@ -131,30 +131,25 @@
         ::-webkit-scrollbar { width: 6px; }
         ::-webkit-scrollbar-track { background: transparent; }
         ::-webkit-scrollbar-thumb { background: #CBD5E1; border-radius: 10px; }
+
+        /* Responsive Design */
+        @media (max-width: 768px) {
+            body { flex-direction: column; overflow-y: auto; }
+            #sidebar { width: 100%; border-right: none; border-bottom: 1px solid var(--border); box-shadow: none; flex-shrink: 0; }
+            #map { min-height: 400px; flex-grow: 1; width: 100%; }
+            .login-card { width: 90%; padding: 32px; }
+            .summary-grid { grid-template-columns: 1fr 1fr; }
+        }
     </style>
 </head>
 <body>
 
-    <!-- Martin Dow Brand Logo SVG Component -->
-    <svg style="display:none">
-        <symbol id="icon-martindow" viewBox="0 0 200 100">
-            <g transform="translate(10, 10) scale(0.8)">
-                <!-- Recreated dots swirl -->
-                <path fill="#00458B" d="M30,15a4,4 0 1,1 8,0a4,4 0,1,1 -8,0" />
-                <path fill="#00458B" d="M45,18a3.5,3.5 0 1,1 7,0a3.5,3.5 0,1,1 -7,0" />
-                <path fill="#00458B" d="M58,22a3,3 0 1,1 6,0a3,3 0,1,1 -6,0" />
-                <path fill="#085BAA" d="M70,28a2.5,2.5 0 1,1 5,0a2.5,2.5 0,1,1 -5,0" />
-                <!-- Text paths for Martin Dow -->
-                <path fill="#00458B" d="M10,75 L18,75 L18,55 L24,68 L30,55 L30,75 L38,75 L38,50 L30,50 L24,63 L18,50 L10,50 Z" />
-                <path fill="#00458B" d="M125,75 A12,12 0 0 0 137,63 L137,50 L125,50 L125,55 L131,55 L131,63 A6,6 0 0 1 125,69 L125,75 Z" />
-            </g>
-        </symbol>
-    </svg>
+    <!-- Main Body Starts -->
 
     <!-- Authentication Overlay -->
     <div id="login_overlay">
         <div class="login-card">
-            <svg width="120" height="60"><use href="#icon-martindow"/></svg>
+            <img src="martin_dow_logo.png" width="120" style="margin-bottom:24px;" alt="MartinDow Logo" />
             <h2>MartinDow Login</h2>
             <p>Enter the secure Dashboard PIN to continue</p>
             <input type="password" id="pin_input" maxlength="4" placeholder="••••">
@@ -167,7 +162,7 @@
         <!-- Dashboard Header -->
         <div class="header">
             <div class="logo-container">
-                <svg width="100" height="40"><use href="#icon-martindow"/></svg>
+                <img src="martin_dow_logo.png" width="100" alt="MartinDow Logo" />
             </div>
             <h1 id="brand_title">MartinDow Tracker</h1>
             <p id="status_text">Establishing live connection...</p>
